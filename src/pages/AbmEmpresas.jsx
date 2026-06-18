@@ -144,12 +144,10 @@ export default function AbmEmpresas() {
       telefono: telefono.trim(),
       email: email.trim(),
       direccion: direccion.trim(),
-      activo: activo,
-      telefono: telefono,
+      activo,
       condicion_iva: condicionIva,
       categoria_monotributo:
         condicionIva === "Monotributista" ? categoriaMonotributo : null,
-      telefono: telefono,
       certificado_crt: rutaCertificado,
       certificado_key: rutaKey,
       certificado_vencimiento: certificadoVencimiento || null,

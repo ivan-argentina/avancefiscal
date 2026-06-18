@@ -29,7 +29,7 @@ import PrintIcon from "@mui/icons-material/Print";
 import { DataGrid } from "@mui/x-data-grid";
 import { supabase } from "../hook/supabaseClient";
 import GenerarPdf from "../componentes/GenerarPdf";
-import { generarpdfU } from "../utils/generarpdfu";
+import { generarpdfU } from "../utils/generarpdfU";
 
 import Tooltip from "@mui/material/Tooltip";
 import { obtenerEmpresa } from "../utils/obtenerEmpresa";
