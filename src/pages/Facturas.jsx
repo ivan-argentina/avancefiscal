@@ -49,34 +49,58 @@ export default function Facturas() {
   };
 
   const autorizarFacturaPendiente = async (factura) => {
-    const response = await fetch("http://localhost:3001/api/fiscal/autorizar", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        idFactura: factura.id,
-      }),
-    });
+    try {
+      const response = await fetch(
+        "https://gestion-production-e3f6.up.railway.app/api/fiscal/autorizar",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            idFactura: factura.id,
+          }),
+        },
+      );
 
-    const data = await response.json();
-    const detallePdf = data.fiscal.detalle.map((item, index) => ({
-      id: index,
-      articulo: item.descripcion,
-      descripcion: item.descripcion,
-      cantidad: item.cantidad,
-      precio: item.precio,
-      subtotal: item.subtotal,
-    }));
+      const data = await response.json();
 
-    if (!data.ok) {
-      alert(data.mensaje || data.error || "Error al autorizar factura");
-      return;
+      if (!response.ok || !data.ok) {
+        throw new Error(data.mensaje || data.error || "Error al autorizar");
+      }
+
+      const detallePdf = data.fiscal.detalle.map((item, index) => ({
+        id: index,
+        articulo: item.descripcion,
+        cantidad: item.cantidad,
+        precio: item.precio,
+        subtotal: item.subtotal,
+      }));
+
+      setPdfData({
+        empresa: data.factura.empresas,
+        numeroFactura: data.afip.numeroFiscal,
+        fecha: data.factura.fecha,
+        tipoComprobante: data.factura.tipo_comprobante,
+        letraComprobante: data.factura.letra_comprobante,
+        formaPago: data.factura.forma_pago,
+        clienteSeleccionado: data.factura.clientes,
+        detalle: detallePdf,
+        totalFactura: data.factura.total,
+        observaciones: data.factura.observaciones,
+        puntoVenta: data.afip.puntoVenta,
+        cae: data.afip.cae,
+        vencimientoCae: data.afip.caeVto,
+        numeroOrigen: data.factura.numero_origen,
+      });
+
+      alert("Factura autorizada correctamente");
+
+      await cargarFacturas();
+    } catch (error) {
+      console.error("Error al autorizar factura:", error);
+      alert(error.message || "Error al autorizar factura");
     }
-
-    alert("Factura autorizada correctamente");
-
-    await cargarFacturas();
   };
 
   const enviarWhatsAppFactura = async (factura) => {

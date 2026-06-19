@@ -117,7 +117,7 @@ app.post("/api/fiscal/autorizar", async (req, res) => {
       .select(
         `
         *,
-        empresas(*),
+        empresas(*, ciudades(nombre)),
         clientes(*),
         detalle_factura(*)
       `,
@@ -335,6 +335,8 @@ app.get("/api/fiscal/certificado/estado", (req, res) => {
   }
 });
 
-app.listen(3001, () => {
-  console.log("Servidor backend en http://localhost:3001");
+const PORT = process.env.PORT || 3001;
+
+app.listen(PORT, () => {
+  console.log(`Servidor backend en puerto ${PORT}`);
 });

@@ -184,7 +184,10 @@ const GenerarPdf = forwardRef(
 
               <Typography sx={{ fontSize: 13, mb: 0.3 }}>
                 <strong>Localidad:</strong>{" "}
-                {empresa?.localidad || empresa?.ciudad || "-"}
+                {empresa?.ciudades?.nombre ||
+                  empresa?.localidad ||
+                  empresa?.ciudad ||
+                  "-"}
               </Typography>
 
               <Typography sx={{ fontSize: 13, mb: 0.3 }}>

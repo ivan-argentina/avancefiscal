@@ -63,6 +63,7 @@ export default function Factura() {
   const cantidadRef = useRef(null);
 
   const drawerWidth = 200;
+  const API_URL = "https://gestion-production-e3f6.up.railway.app";
 
   useEffect(() => {
     if (!generarPdfPendiente || !pdfData) return;
@@ -300,209 +301,194 @@ export default function Factura() {
   );
 
   const guardarFactura = async () => {
-    if (!clienteId) {
-      alert("Seleccione un cliente");
-      return;
-    }
+    try {
+      if (!clienteId) {
+        alert("Seleccione un cliente");
+        return;
+      }
 
-    if (detalle.length === 0) {
-      alert("Agregue al menos un artículo");
-      return;
-    }
+      if (detalle.length === 0) {
+        alert("Agregue al menos un artículo");
+        return;
+      }
 
-    const totalCalc = detalle.reduce(
-      (acc, item) => acc + Number(item.subtotal || 0),
-      0,
-    );
-
-    const usuarioGuardado = JSON.parse(localStorage.getItem("usuario"));
-    const idEmpresa = await obtenerEmpresa(usuarioGuardado.id);
-
-    const { data: empresa } = await supabase
-      .from("empresas")
-      .select("proximo_remito")
-      .eq("id", idEmpresa)
-      .single();
-
-    const numeroRemito = empresa.proximo_remito;
-
-    const facturaNueva = {
-      fecha,
-      idcliente: clienteId,
-      tipo_comprobante: tipoComprobante,
-      letra_comprobante: letraComprobante,
-      forma_pago: formaPago,
-      medio_pago: formaPago === "Contado" ? medioPago : null,
-      observaciones: observaciones || "",
-      subtotal: totalCalc,
-      total: totalCalc,
-      saldo: formaPago === "Cuenta corriente" ? totalCalc : 0,
-      estado_pago: formaPago === "Cuenta corriente" ? "pendiente" : "pagada",
-      idempresa: idEmpresa,
-      numero: numeroRemito,
-      idusuario: usuarioGuardado.id,
-      idfactura_origen:
-        tipoComprobante === "nota_de_credito" ? idFacturaOrigen : null,
-      numero_origen:
-        tipoComprobante === "nota_de_credito" ? numeroFacturaOrigen : null,
-    };
-
-    const { data, error } = await supabase
-      .from("facturas")
-      .insert([facturaNueva])
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error al guardar factura:", error);
-      alert("Error al guardar factura");
-      return;
-    }
-
-    const facturaId = data.id;
-    const numeroGenerado = data.numero;
-
-    const detalleInsert = detalle.map((item) => ({
-      idfactura: facturaId,
-      idarticulo: item.idarticulo,
-      codigo: item.codigo,
-      descripcion: item.descripcion || item.articulo || "",
-      cantidad: Number(item.cantidad),
-      precio: Number(item.precio),
-      subtotal: Number(item.subtotal),
-      idempresa: idEmpresa,
-    }));
-    const { data: detalleData, error: errorDetalle } = await supabase
-      .from("detalle_factura")
-      .insert(detalleInsert)
-      .select();
-
-    if (errorDetalle) {
-      alert("Error al guardar detalle");
-      return;
-    }
-    //Factura Electronica
-    const responseFiscal = await fetch(
-      "http://localhost:3001/api/fiscal/autorizar",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          idFactura: facturaId,
-        }),
-      },
-    );
-
-    const respuestaFiscal = await responseFiscal.json();
-
-    if (!respuestaFiscal.ok) {
-      alert(respuestaFiscal.mensaje || respuestaFiscal.error || "Error fiscal");
-      return;
-    }
-
-    const letraFiscal = respuestaFiscal.factura.letra_comprobante;
-
-    const esConIva = letraFiscal === "A" || letraFiscal === "B";
-
-    const neto = esConIva ? Number((totalCalc / 1.21).toFixed(2)) : totalCalc;
-
-    const iva = esConIva ? Number((totalCalc - neto).toFixed(2)) : 0;
-
-    const datosPdfFiscal = {
-      empresa: respuestaFiscal.factura.empresas,
-      numeroFactura: respuestaFiscal.afip.numeroFiscal,
-      fecha: respuestaFiscal.factura.fecha,
-      tipoComprobante: respuestaFiscal.factura.tipo_comprobante,
-      letraComprobante: respuestaFiscal.factura.letra_comprobante,
-      formaPago: respuestaFiscal.factura.forma_pago,
-      clienteSeleccionado,
-      detalle,
-      totalFactura: totalCalc,
-      neto,
-      iva,
-      observaciones,
-      puntoVenta: respuestaFiscal.afip.puntoVenta,
-      cae: respuestaFiscal.afip.cae,
-      vencimientoCae: respuestaFiscal.afip.caeVto,
-      numeroOrigen: numeroFacturaOrigen,
-    };
-
-    setPdfData(datosPdfFiscal);
-    setGenerarPdfPendiente(true);
-
-    await supabase
-      .from("empresas")
-      .update({
-        proximo_remito: numeroRemito + 1,
-      })
-      .eq("id", idEmpresa);
-
-    // Movimiento de stock
-    if (
-      tipoComprobante === "factura" ||
-      tipoComprobante === "remito" ||
-      tipoComprobante === "nota_de_credito"
-    ) {
-      const itemsStock = detalle.map((item) => ({
-        idarticulo: item.idarticulo,
-        cantidad: Number(item.cantidad),
-      }));
+      const totalCalc = detalle.reduce(
+        (acc, item) => acc + Number(item.subtotal || 0),
+        0,
+      );
 
       const usuarioGuardado = JSON.parse(localStorage.getItem("usuario"));
       const idEmpresa = await obtenerEmpresa(usuarioGuardado.id);
 
-      const funcionStock =
-        tipoComprobante === "nota_de_credito"
-          ? "devolver_stock_multiple"
-          : "descontar_stock_multiple";
+      const { data: empresa } = await supabase
+        .from("empresas")
+        .select("proximo_remito")
+        .eq("id", idEmpresa)
+        .single();
 
-      const { error: errorStock } = await supabase.rpc(funcionStock, {
-        items: itemsStock,
-        p_idempresa: idEmpresa,
-      });
+      const numeroRemito = empresa.proximo_remito;
 
-      if (errorStock) {
-        console.log("Error al mover stock:", errorStock);
-        alert("Error al actualizar stock");
+      const facturaNueva = {
+        fecha,
+        idcliente: clienteId,
+        tipo_comprobante: tipoComprobante,
+        letra_comprobante: letraComprobante,
+        forma_pago: formaPago,
+        medio_pago: formaPago === "Contado" ? medioPago : null,
+        observaciones: observaciones || "",
+        subtotal: totalCalc,
+        total: totalCalc,
+        saldo: formaPago === "Cuenta corriente" ? totalCalc : 0,
+        estado_pago: formaPago === "Cuenta corriente" ? "pendiente" : "pagada",
+        idempresa: idEmpresa,
+        numero: numeroRemito,
+        idusuario: usuarioGuardado.id,
+        idfactura_origen:
+          tipoComprobante === "nota_de_credito" ? idFacturaOrigen : null,
+        numero_origen:
+          tipoComprobante === "nota_de_credito" ? numeroFacturaOrigen : null,
+      };
+
+      const { data, error } = await supabase
+        .from("facturas")
+        .insert([facturaNueva])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error al guardar factura:", error);
+        alert("Error al guardar factura");
         return;
       }
+
+      const facturaId = data.id;
+      const numeroGenerado = data.numero;
+
+      const detalleInsert = detalle.map((item) => ({
+        idfactura: facturaId,
+        idarticulo: item.idarticulo,
+        codigo: item.codigo,
+        descripcion: item.descripcion || item.articulo || "",
+        cantidad: Number(item.cantidad),
+        precio: Number(item.precio),
+        subtotal: Number(item.subtotal),
+        idempresa: idEmpresa,
+      }));
+
+      const { error: errorDetalle } = await supabase
+        .from("detalle_factura")
+        .insert(detalleInsert);
+
+      if (errorDetalle) {
+        console.error("Error al guardar detalle:", errorDetalle);
+        alert("Error al guardar detalle");
+        return;
+      }
+
+      const responseFiscal = await fetch(
+        "https://gestion-production-e3f6.up.railway.app/api/fiscal/autorizar",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            idFactura: facturaId,
+          }),
+        },
+      );
+
+      const respuestaFiscal = await responseFiscal.json();
+
+      if (!respuestaFiscal.ok) {
+        alert(
+          respuestaFiscal.mensaje || respuestaFiscal.error || "Error fiscal",
+        );
+        return;
+      }
+
+      const letraFiscal = respuestaFiscal.factura.letra_comprobante;
+      const esConIva = letraFiscal === "A" || letraFiscal === "B";
+      const neto = esConIva ? Number((totalCalc / 1.21).toFixed(2)) : totalCalc;
+      const iva = esConIva ? Number((totalCalc - neto).toFixed(2)) : 0;
+
+      const datosPdfFiscal = {
+        empresa: respuestaFiscal.factura.empresas,
+        numeroFactura: respuestaFiscal.afip.numeroFiscal,
+        fecha: respuestaFiscal.factura.fecha,
+        tipoComprobante: respuestaFiscal.factura.tipo_comprobante,
+        letraComprobante: respuestaFiscal.factura.letra_comprobante,
+        formaPago: respuestaFiscal.factura.forma_pago,
+        clienteSeleccionado,
+        detalle,
+        totalFactura: totalCalc,
+        neto,
+        iva,
+        observaciones,
+        puntoVenta: respuestaFiscal.afip.puntoVenta,
+        cae: respuestaFiscal.afip.cae,
+        vencimientoCae: respuestaFiscal.afip.caeVto,
+        numeroOrigen: numeroFacturaOrigen,
+      };
+
+      setPdfData(datosPdfFiscal);
+      setGenerarPdfPendiente(true);
+
+      await supabase
+        .from("empresas")
+        .update({
+          proximo_remito: numeroRemito + 1,
+        })
+        .eq("id", idEmpresa);
+
+      if (
+        tipoComprobante === "factura" ||
+        tipoComprobante === "remito" ||
+        tipoComprobante === "nota_de_credito"
+      ) {
+        const itemsStock = detalle.map((item) => ({
+          idarticulo: item.idarticulo,
+          cantidad: Number(item.cantidad),
+        }));
+
+        const funcionStock =
+          tipoComprobante === "nota_de_credito"
+            ? "devolver_stock_multiple"
+            : "descontar_stock_multiple";
+
+        const { error: errorStock } = await supabase.rpc(funcionStock, {
+          items: itemsStock,
+          p_idempresa: idEmpresa,
+        });
+
+        if (errorStock) {
+          console.log("Error al mover stock:", errorStock);
+          alert("Error al actualizar stock");
+          return;
+        }
+      }
+
+      setNumeroFactura(numeroGenerado);
+
+      setClienteId("");
+      setClienteSeleccionado(null);
+      setFecha(new Date().toISOString().slice(0, 10));
+      setTipoComprobante("factura");
+      setFormaPago("Contado");
+      setMedioPago("efectivo");
+      setObservaciones("");
+      setArticuloId("");
+      setArticuloSeleccionado(null);
+      setInputArticulo("");
+      setCantidad(1);
+      setPrecio("");
+      setDetalle([]);
+      setIdFacturaOrigen(null);
+    } catch (error) {
+      console.error("Error en guardarFactura:", error);
+      alert(error.message || "Error al guardar factura");
     }
-
-    setNumeroFactura(numeroGenerado);
-
-    const datosPdfRemito = {
-      numeroFactura: respuestaFiscal.afip.numeroFiscal,
-      fecha,
-      tipoComprobante,
-      letraComprobante: "C",
-      formaPago,
-      clienteSeleccionado,
-      detalle,
-      totalFactura: totalCalc,
-      observaciones,
-      puntoVenta: respuestaFiscal.afip.puntoVenta,
-      cae: respuestaFiscal.afip.cae,
-      vencimientoCae: respuestaFiscal.afip.caeVto,
-    };
-
-    setClienteId("");
-    setClienteSeleccionado(null);
-    setFecha(new Date().toISOString().slice(0, 10));
-    setTipoComprobante("factura");
-    setFormaPago("Contado");
-    setMedioPago("efectivo");
-    setObservaciones("");
-    setArticuloId("");
-    setArticuloSeleccionado(null);
-    setInputArticulo("");
-    setCantidad(1);
-    setPrecio("");
-    setDetalle([]);
-    setIdFacturaOrigen(null);
   };
-
   useEffect(() => {
     const cargarEmpresa = async () => {
       const data = await obtenerEmpresa();
