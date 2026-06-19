@@ -64,6 +64,12 @@ const prepararFacturaFiscal = (factura) => {
     })),
   };
 };
+app.get("/ping", (req, res) => {
+  res.json({
+    ok: true,
+    mensaje: "backend funcionando",
+  });
+});
 
 app.get("/api/test", async (req, res) => {
   try {
