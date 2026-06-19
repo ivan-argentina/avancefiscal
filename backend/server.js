@@ -70,6 +70,11 @@ app.get("/ping", (req, res) => {
     mensaje: "backend funcionando",
   });
 });
+const PORT = process.env.PORT || 3001;
+
+app.listen(PORT, () => {
+  console.log(`Servidor backend en puerto ${PORT}`);
+});
 
 app.get("/api/test", async (req, res) => {
   try {
