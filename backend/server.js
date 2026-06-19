@@ -65,6 +65,20 @@ const prepararFacturaFiscal = (factura) => {
   };
 };
 
+app.get("/api/test", async (req, res) => {
+  try {
+    const auth = await obtenerTokenSign();
+
+    res.json(auth);
+  } catch (error) {
+    console.error("ERROR WSAA:", error);
+
+    res.status(500).json({
+      error: error.message,
+      stack: error.stack,
+    });
+  }
+});
 app.get("/", (req, res) => {
   res.send("Backend fiscal funcionando");
 });
